@@ -1,0 +1,9 @@
+﻿
+> aegis-landing@0.1.0 dev
+> next dev
+
+  Γû▓ Next.js 14.2.35
+  - Local:        http://localhost:3001
+
+ Γ£ô Starting...
+ Γ£ô Ready in 1987ms
