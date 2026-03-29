@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Play, Search, Cloud, Clock, ShieldCheck, CheckCircle2, Loader2 } from "lucide-react";
+import { Play, Search, Cloud, ShieldCheck, CheckCircle2, Loader2 } from "lucide-react";
 import { BackgroundPaths } from "./ui/background-paths";
 
 // A node on the canvas recreating the n8n UI style exactly
