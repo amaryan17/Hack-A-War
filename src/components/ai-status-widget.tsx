@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Cpu, Zap, Activity, BrainCircuit, ChevronDown, X, Terminal, Server, ShieldCheck, Gauge } from "lucide-react";
+import { BrainCircuit, ChevronDown, Terminal, Server, ShieldCheck, Gauge } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /* ── Live Token Counter ─────────────────────────────────────── */

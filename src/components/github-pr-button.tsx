@@ -12,7 +12,7 @@ export function GithubPRButton() {
   const [prStage, setPrStage] = useState<number>(0); // 0 = idle, 1-3 = loading stages, 4 = done
   const [prModalOpen, setPrModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // error state removed to fix unused variable lint error
 
   const prStageLabels: Record<number, string> = {
     1: "Packaging Terraform...",
@@ -28,7 +28,6 @@ export function GithubPRButton() {
         } else {
           setPrStage(4);
           setPrModalOpen(true);
-          setError(null);
         }
       }, 800);
       return () => clearTimeout(timer);
@@ -37,7 +36,6 @@ export function GithubPRButton() {
 
   const handleCreatePR = () => {
     if (prStage === 0 || prStage === 4) {
-      setError(null);
       setCopied(false);
       setPrStage(1);
     }
