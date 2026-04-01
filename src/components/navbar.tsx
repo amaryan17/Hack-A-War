@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Menu, X } from "lucide-react";
+import { GithubPRButton } from "./github-pr-button";
 
 const navLinks = [
   { href: "#problem", label: "Problem" },
@@ -81,8 +82,10 @@ export function Navbar() {
             ))}
           </div>
 
-          {/* CTA Button */}
-          <div className="hidden md:block">
+          {/* CTA Buttons */}
+          <div className="hidden md:flex items-center gap-3">
+            <GithubPRButton />
+
             <button className="relative px-5 py-2 rounded-xl text-sm font-medium text-white/90 overflow-hidden group transition-all duration-300 border border-white/10 hover:border-[#00E5FF]/40 bg-white/[0.03] hover:bg-[#00E5FF]/10 backdrop-blur-sm">
               <span className="relative z-10 flex items-center gap-2">
                 View on GitHub
