@@ -1,0 +1,367 @@
+{
+  "security_score": 87,
+  "iam_policies": [
+    {
+      "name": "aegis-app-server-role",
+      "type": "IAM_ROLE",
+      "resource": "aws_instance.app_server",
+      "trust_policy": {
+        "Version": "2012-10-17",
+        "Statement": [{"Effect": "Allow", "Principal": {"Service": "ec2.amazonaws.com"}, "Action": "sts:AssumeRole"}]
+      },
+      "permission_policies": [
+        {
+          "PolicyName": "app-server-s3-read",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Sid": "AllowS3ReadMediaAssets",
+                "Effect": "Allow",
+                "Action": ["s3:GetObject", "s3:ListBucket"],
+                "Resource": ["arn:aws:s3:::aegis-prod-media-assets", "arn:aws:s3:::aegis-prod-media-assets/*"],
+                "Condition": {"StringEquals": {"aws:RequestedRegion": "us-east-1"}}
+              }
+            ]
+          },
+          "rationale": "App server serves static assets from the media bucket. Only read access is required — uploads go through the Lambda pipeline."
+        },
+        {
+          "PolicyName": "app-server-rds-connect",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Sid": "AllowRDSConnect",
+                "Effect": "Allow",
+                "Action": ["rds-db:connect"],
+                "Resource": ["arn:aws:rds-db:us-east-1:*:dbuser:*/admin"]
+              }
+            ]
+          },
+          "rationale": "App server connects to PostgreSQL RDS for application data. Only connect permission needed — schema changes are done via CI/CD."
+        },
+        {
+          "PolicyName": "app-server-elasticache",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Sid": "AllowElastiCacheAccess",
+                "Effect": "Allow",
+                "Action": ["elasticache:DescribeCacheClusters"],
+                "Resource": ["*"],
+                "Condition": {"StringEquals": {"aws:RequestedRegion": "us-east-1"}}
+              }
+            ]
+          },
+          "rationale": "App server discovers ElastiCache endpoints for Redis caching. Network-level access is controlled by security groups."
+        }
+      ],
+      "terraform_resource": "resource \"aws_iam_role\" \"app_server\" {\n  name = \"aegis-app-server-role\"\n  assume_role_policy = data.aws_iam_policy_document.ec2_assume.json\n}"
+    },
+    {
+      "name": "aegis-worker-role",
+      "type": "IAM_ROLE",
+      "resource": "aws_instance.worker",
+      "trust_policy": {
+        "Version": "2012-10-17",
+        "Statement": [{"Effect": "Allow", "Principal": {"Service": "ec2.amazonaws.com"}, "Action": "sts:AssumeRole"}]
+      },
+      "permission_policies": [
+        {
+          "PolicyName": "worker-sqs-consume",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Sid": "AllowSQSConsume",
+                "Effect": "Allow",
+                "Action": ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"],
+                "Resource": ["arn:aws:sqs:us-east-1:*:image-uploads-sub"]
+              }
+            ]
+          },
+          "rationale": "Worker processes messages from the image uploads queue. Only consume permissions needed, not publish."
+        }
+      ],
+      "terraform_resource": "resource \"aws_iam_role\" \"worker\" {\n  name = \"aegis-worker-role\"\n  assume_role_policy = data.aws_iam_policy_document.ec2_assume.json\n}"
+    },
+    {
+      "name": "aegis-eks-cluster-role",
+      "type": "IAM_ROLE",
+      "resource": "aws_eks_cluster.main",
+      "trust_policy": {
+        "Version": "2012-10-17",
+        "Statement": [{"Effect": "Allow", "Principal": {"Service": "eks.amazonaws.com"}, "Action": "sts:AssumeRole"}]
+      },
+      "permission_policies": [
+        {
+          "PolicyName": "eks-cluster-policy",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Sid": "EKSClusterPermissions",
+                "Effect": "Allow",
+                "Action": ["eks:DescribeCluster", "eks:ListNodegroups", "ec2:DescribeSubnets", "ec2:DescribeSecurityGroups", "ec2:DescribeVpcs"],
+                "Resource": ["*"],
+                "Condition": {"StringEquals": {"aws:RequestedRegion": "us-east-1"}}
+              }
+            ]
+          },
+          "rationale": "EKS control plane requires these permissions for cluster management. AWS managed policy AmazonEKSClusterPolicy should also be attached."
+        }
+      ],
+      "terraform_resource": "resource \"aws_iam_role\" \"eks_cluster\" {\n  name = \"aegis-eks-cluster-role\"\n  assume_role_policy = data.aws_iam_policy_document.eks_assume.json\n}"
+    },
+    {
+      "name": "aegis-eks-node-role",
+      "type": "IAM_ROLE",
+      "resource": "aws_eks_node_group.primary",
+      "trust_policy": {
+        "Version": "2012-10-17",
+        "Statement": [{"Effect": "Allow", "Principal": {"Service": "ec2.amazonaws.com"}, "Action": "sts:AssumeRole"}]
+      },
+      "permission_policies": [
+        {
+          "PolicyName": "eks-node-ecr-read",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Sid": "AllowECRRead",
+                "Effect": "Allow",
+                "Action": ["ecr:GetDownloadUrlForLayer", "ecr:BatchGetImage", "ecr:GetAuthorizationToken"],
+                "Resource": ["*"]
+              }
+            ]
+          },
+          "rationale": "EKS nodes need to pull container images from ECR. Read-only access to container registry."
+        },
+        {
+          "PolicyName": "eks-node-s3-logs",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Sid": "AllowS3LogWrite",
+                "Effect": "Allow",
+                "Action": ["s3:PutObject"],
+                "Resource": ["arn:aws:s3:::aegis-prod-application-logs/*"]
+              }
+            ]
+          },
+          "rationale": "EKS nodes write application logs to the logs bucket. Only write access needed."
+        }
+      ],
+      "terraform_resource": "resource \"aws_iam_role\" \"eks_node\" {\n  name = \"aegis-eks-node-role\"\n  assume_role_policy = data.aws_iam_policy_document.ec2_assume.json\n}"
+    },
+    {
+      "name": "aegis-lambda-exec-role",
+      "type": "IAM_ROLE",
+      "resource": "aws_lambda_function.image_processor",
+      "trust_policy": {
+        "Version": "2012-10-17",
+        "Statement": [{"Effect": "Allow", "Principal": {"Service": "lambda.amazonaws.com"}, "Action": "sts:AssumeRole"}]
+      },
+      "permission_policies": [
+        {
+          "PolicyName": "lambda-s3-readwrite",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Sid": "AllowS3MediaReadWrite",
+                "Effect": "Allow",
+                "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+                "Resource": ["arn:aws:s3:::aegis-prod-media-assets/*"]
+              }
+            ]
+          },
+          "rationale": "Image processor Lambda reads original images, processes them, and writes optimized versions back to the media bucket."
+        },
+        {
+          "PolicyName": "lambda-rds-connect",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Sid": "AllowRDSConnect",
+                "Effect": "Allow",
+                "Action": ["rds-db:connect"],
+                "Resource": ["arn:aws:rds-db:us-east-1:*:dbuser:*/admin"]
+              }
+            ]
+          },
+          "rationale": "Lambda updates image metadata in the PostgreSQL database after processing."
+        },
+        {
+          "PolicyName": "lambda-cloudwatch-logs",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Sid": "AllowCloudWatchLogs",
+                "Effect": "Allow",
+                "Action": ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
+                "Resource": ["arn:aws:logs:us-east-1:*:log-group:/aws/lambda/image-processor:*"]
+              }
+            ]
+          },
+          "rationale": "Lambda requires CloudWatch Logs access for execution logging."
+        },
+        {
+          "PolicyName": "lambda-kms-decrypt",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Sid": "AllowKMSDecrypt",
+                "Effect": "Allow",
+                "Action": ["kms:Decrypt", "kms:GenerateDataKey"],
+                "Resource": ["arn:aws:kms:us-east-1:*:key/*"],
+                "Condition": {"StringEquals": {"kms:ViaService": "s3.us-east-1.amazonaws.com"}}
+              }
+            ]
+          },
+          "rationale": "Lambda needs to decrypt/encrypt S3 objects that are KMS-encrypted."
+        }
+      ],
+      "terraform_resource": "resource \"aws_iam_role\" \"lambda_exec\" {\n  name = \"aegis-lambda-exec-role\"\n  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json\n}"
+    },
+    {
+      "name": "aegis-s3-media-bucket-policy",
+      "type": "BUCKET_POLICY",
+      "resource": "aws_s3_bucket.media_assets",
+      "trust_policy": {},
+      "permission_policies": [
+        {
+          "PolicyName": "media-bucket-policy",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Sid": "DenyUnencryptedUploads",
+                "Effect": "Deny",
+                "Principal": "*",
+                "Action": "s3:PutObject",
+                "Resource": "arn:aws:s3:::aegis-prod-media-assets/*",
+                "Condition": {"StringNotEquals": {"s3:x-amz-server-side-encryption": "aws:kms"}}
+              },
+              {
+                "Sid": "DenyInsecureTransport",
+                "Effect": "Deny",
+                "Principal": "*",
+                "Action": "s3:*",
+                "Resource": ["arn:aws:s3:::aegis-prod-media-assets", "arn:aws:s3:::aegis-prod-media-assets/*"],
+                "Condition": {"Bool": {"aws:SecureTransport": "false"}}
+              }
+            ]
+          },
+          "rationale": "Enforce encryption at rest (KMS) and in transit (HTTPS) for all media assets. Blocks unencrypted uploads and HTTP access."
+        }
+      ],
+      "terraform_resource": "resource \"aws_s3_bucket_policy\" \"media\" {\n  bucket = aws_s3_bucket.media_assets.id\n  policy = data.aws_iam_policy_document.media_bucket.json\n}"
+    },
+    {
+      "name": "aegis-kms-key-policy",
+      "type": "KEY_POLICY",
+      "resource": "aws_kms_key.main",
+      "trust_policy": {},
+      "permission_policies": [
+        {
+          "PolicyName": "kms-key-policy",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Sid": "AllowKeyAdministration",
+                "Effect": "Allow",
+                "Principal": {"AWS": "arn:aws:iam::*:root"},
+                "Action": ["kms:Create*", "kms:Describe*", "kms:Enable*", "kms:List*", "kms:Put*", "kms:Update*", "kms:Revoke*", "kms:Disable*", "kms:Get*", "kms:Delete*", "kms:TagResource", "kms:UntagResource", "kms:ScheduleKeyDeletion", "kms:CancelKeyDeletion"],
+                "Resource": "*"
+              },
+              {
+                "Sid": "AllowKeyUsage",
+                "Effect": "Allow",
+                "Principal": {"AWS": ["arn:aws:iam::*:role/aegis-lambda-exec-role", "arn:aws:iam::*:role/aegis-app-server-role"]},
+                "Action": ["kms:Encrypt", "kms:Decrypt", "kms:ReEncrypt*", "kms:GenerateDataKey*", "kms:DescribeKey"],
+                "Resource": "*"
+              }
+            ]
+          },
+          "rationale": "KMS key policy restricts administration to account root and usage to specific IAM roles that need encryption/decryption."
+        }
+      ],
+      "terraform_resource": "resource \"aws_kms_key\" \"main\" {\n  description = \"Aegis encryption key\"\n  policy = data.aws_iam_policy_document.kms_policy.json\n}"
+    },
+    {
+      "name": "aegis-backup-role",
+      "type": "IAM_ROLE",
+      "resource": "aws_s3_bucket.backups",
+      "trust_policy": {
+        "Version": "2012-10-17",
+        "Statement": [{"Effect": "Allow", "Principal": {"Service": "backup.amazonaws.com"}, "Action": "sts:AssumeRole"}]
+      },
+      "permission_policies": [
+        {
+          "PolicyName": "backup-s3-write",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Sid": "AllowBackupWrite",
+                "Effect": "Allow",
+                "Action": ["s3:PutObject", "s3:GetObject"],
+                "Resource": ["arn:aws:s3:::aegis-prod-backups/*"]
+              }
+            ]
+          },
+          "rationale": "AWS Backup service needs write access to the backup bucket for scheduled database and EBS snapshots."
+        }
+      ],
+      "terraform_resource": "resource \"aws_iam_role\" \"backup\" {\n  name = \"aegis-backup-role\"\n  assume_role_policy = data.aws_iam_policy_document.backup_assume.json\n}"
+    }
+  ],
+  "violations": [
+    {
+      "severity": "HIGH",
+      "resource": "google_project_iam_binding.app_editor",
+      "description": "GCP roles/editor binding grants broad read/write access across the entire project. This violates Zero-Trust principles and creates a massive blast radius.",
+      "original_gcp": "roles/editor",
+      "recommended_aws": "Split into task-specific roles: app-server-s3-read, app-server-rds-connect, app-server-elasticache"
+    },
+    {
+      "severity": "HIGH",
+      "resource": "google_project_iam_binding.storage_admin",
+      "description": "roles/storage.admin grants full control over ALL storage buckets project-wide",
+      "original_gcp": "roles/storage.admin",
+      "recommended_aws": "Bucket-specific policies with only required actions (GetObject, PutObject)"
+    },
+    {
+      "severity": "MEDIUM",
+      "resource": "google_service_account.app_sa",
+      "description": "Single service account used for multiple workloads (app server, worker, cloud function) — violates separation of duties",
+      "original_gcp": "Shared service account",
+      "recommended_aws": "Separate IAM roles per workload: app-server-role, worker-role, lambda-exec-role"
+    },
+    {
+      "severity": "MEDIUM",
+      "resource": "google_compute_instance.app_server",
+      "description": "Instance uses cloud-platform OAuth scope which grants access to all GCP APIs",
+      "original_gcp": "scopes: [cloud-platform]",
+      "recommended_aws": "Instance profile with minimum required policies only"
+    }
+  ],
+  "recommendations": [
+    "All GCP roles/editor bindings have been decomposed into 8 task-specific IAM policies with exact actions and ARNs",
+    "Add aws:RequestedRegion condition to all policies to prevent cross-region resource access",
+    "Enable CloudTrail in all regions for comprehensive IAM audit logging",
+    "Implement IAM Access Analyzer to continuously detect over-permissioned resources",
+    "Add MFA condition (aws:MultiFactorAuthPresent) to all roles with write permissions on production resources",
+    "Set up AWS Config rules for continuous IAM compliance monitoring",
+    "Use S3 bucket policies to enforce encryption at rest and deny HTTP access",
+    "Implement permission boundaries on all IAM roles to cap maximum permissions"
+  ]
+}

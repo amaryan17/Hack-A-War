@@ -4,6 +4,9 @@ import { motion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { WebGLShader } from './ui/web-gl-shader';
 import { LiquidButton } from './ui/liquid-glass-button';
+import { useRouter } from 'next/navigation';
+import { aegisAPI } from '@/lib/api';
+import { Loader2 } from 'lucide-react';
 
 const terminalLines = [
   { text: "$ aegis-factory run --source=./gcp-portfolio --target=aws", color: "#6B8CAE" },
@@ -311,6 +314,21 @@ const heroCSS = `
 
 // ─── MAIN HERO (static after mount — no typewriter state here) ───
 export function Hero() {
+  const router = useRouter();
+  const [isStarting, setIsStarting] = useState(false);
+
+  const handleStartDemo = async () => {
+    try {
+      setIsStarting(true);
+      const res = await aegisAPI.startDemo();
+      router.push(`/pipeline/${res.job_id}`);
+    } catch (err) {
+      console.error("Failed to start demo:", err);
+      setIsStarting(false);
+      alert("Failed to connect to backend API. Please make sure port 8000 is open.");
+    }
+  };
+
   const containerVariants = useMemo(() => ({
     hidden: { opacity: 0 },
     show: { opacity: 1, transition: { staggerChildren: 0.1 } }
@@ -357,9 +375,12 @@ export function Hero() {
           </motion.p>
 
           <motion.div className="btn-row" variants={itemVariants}>
-            <LiquidButton className="text-white border border-white/10 rounded-full" size={'xl'}>
-              Watch the Demo →
-            </LiquidButton>
+            <div onClick={handleStartDemo} className="cursor-pointer pointer-events-auto">
+              <LiquidButton className="text-white border border-white/10 rounded-full" size={'xl'}>
+                {isStarting ? <Loader2 size={18} className="animate-spin mr-2 inline" /> : null}
+                {isStarting ? "Initializing..." : "Run Test Pipeline →"}
+              </LiquidButton>
+            </div>
             <LiquidButton className="text-white/70 border border-white/10 rounded-full" size={'xl'} variant={'outline'}>
               View Architecture
             </LiquidButton>

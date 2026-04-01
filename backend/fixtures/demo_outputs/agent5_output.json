@@ -1,0 +1,284 @@
+{
+  "report_metadata": {
+    "title": "Aegis Migration Factory — SOC-2 Type II Compliance Assessment",
+    "generated_at": "2026-04-01T10:30:00Z",
+    "migration_scope": "GCP to AWS Migration",
+    "auditor": "Aegis AI Audit Engine v1.0",
+    "overall_compliance_score": 78
+  },
+  "executive_summary": "This SOC-2 Type II compliance assessment evaluates the GCP-to-AWS infrastructure migration performed by the Aegis Migration Factory. The migration scope encompasses 22 GCP resources translated to 20 AWS equivalents across compute, storage, database, networking, serverless, and messaging service categories.\n\nThe overall compliance score of 78/100 reflects strong implementation of access controls (CC6) and change management (CC8), with areas for improvement in system operations monitoring (CC7) and availability controls (A1). The migration process successfully addressed several pre-existing security vulnerabilities including over-permissioned IAM roles (roles/editor eliminated), public storage bucket exposure (CMEK encryption added), and deprecated infrastructure components (N1 machine types upgraded).\n\nKey strengths include: zero-trust IAM implementation with 8 task-specific policies replacing 2 overly-broad GCP bindings, KMS encryption on all storage resources, deletion protection on production databases, and proper network segmentation via VPC with public/private subnet isolation.\n\nAreas requiring attention: MFA enforcement on privileged roles, CloudTrail configuration for comprehensive audit logging, formal incident response procedures, and documented recovery objectives (RPO/RTO) for business continuity planning.",
+  "trust_service_criteria": {
+    "CC6": {
+      "name": "Logical and Physical Access Controls",
+      "overall_status": "PARTIALLY_SATISFIED",
+      "score": 82,
+      "criteria": {
+        "CC6.1": {
+          "status": "SATISFIED",
+          "evidence": "IAM roles with least-privilege policies implemented for all 20 AWS resources. Each role has specific trust policies and permission boundaries. Security groups restrict network access by port and CIDR range.",
+          "gaps": [],
+          "recommendations": []
+        },
+        "CC6.2": {
+          "status": "SATISFIED",
+          "evidence": "All IAM roles use service-linked trust policies requiring AWS STS AssumeRole. No static credentials are provisioned. EC2 instances use instance profiles rather than access keys.",
+          "gaps": [],
+          "recommendations": []
+        },
+        "CC6.3": {
+          "status": "SATISFIED",
+          "evidence": "Role-based access implemented with 8 separate IAM roles matching workload requirements. Original GCP roles/editor (project-wide) decomposed into task-specific policies with exact actions and resource ARNs.",
+          "gaps": [],
+          "recommendations": []
+        },
+        "CC6.6": {
+          "status": "PARTIALLY_SATISFIED",
+          "evidence": "VPC with public/private subnet isolation. Security groups defined for web and internal traffic patterns. KMS encryption on storage resources.",
+          "gaps": ["No AWS WAF configured for application-layer protection", "No VPC Flow Logs enabled for network monitoring"],
+          "recommendations": ["Deploy AWS WAF on the application load balancer", "Enable VPC Flow Logs and ship to CloudWatch Logs"]
+        },
+        "CC6.7": {
+          "status": "PARTIALLY_SATISFIED",
+          "evidence": "KMS encryption at rest for S3 buckets and RDS. S3 bucket policies enforce HTTPS-only access (deny aws:SecureTransport=false).",
+          "gaps": ["No ACM certificate configured for in-transit encryption on load balancer", "Redis ElastiCache in-transit encryption not explicitly enabled"],
+          "recommendations": ["Configure ACM certificates for TLS termination", "Enable in-transit encryption on ElastiCache Redis cluster"]
+        },
+        "CC6.8": {
+          "status": "SATISFIED",
+          "evidence": "No public S3 buckets (corrected from GCP). Security group ingress rules restrict access. RDS instances in private subnet with security group protection. No IAM policies with wildcard actions or resources.",
+          "gaps": [],
+          "recommendations": []
+        }
+      }
+    },
+    "CC7": {
+      "name": "System Operations",
+      "overall_status": "PARTIALLY_SATISFIED",
+      "score": 65,
+      "criteria": {
+        "CC7.1": {
+          "status": "PARTIALLY_SATISFIED",
+          "evidence": "Lambda function logs to CloudWatch. EKS cluster has basic Kubernetes logging.",
+          "gaps": ["No AWS Inspector configured for vulnerability scanning", "No Amazon GuardDuty enabled for threat detection", "No automated patching schedule defined"],
+          "recommendations": ["Enable AWS Inspector for continuous vulnerability assessment", "Enable GuardDuty for intelligent threat detection", "Configure Systems Manager Patch Manager for automated OS patching"]
+        },
+        "CC7.2": {
+          "status": "PARTIALLY_SATISFIED",
+          "evidence": "CloudWatch basic monitoring enabled on EC2 instances. RDS has enhanced monitoring available.",
+          "gaps": ["No CloudWatch alarms configured for critical metrics", "No centralized logging solution (CloudWatch Logs Insights or ELK)"],
+          "recommendations": ["Create CloudWatch alarms for CPU, memory, disk, and network anomalies", "Implement centralized log aggregation with CloudWatch Logs Insights"]
+        },
+        "CC7.3": {
+          "status": "NOT_SATISFIED",
+          "evidence": "No formal security event evaluation procedures defined in the infrastructure.",
+          "gaps": ["No AWS SecurityHub enabled", "No automated security event triage workflow", "No integration with incident management system"],
+          "recommendations": ["Enable AWS SecurityHub for unified security posture management", "Create EventBridge rules for automated security event routing", "Integrate with PagerDuty or OpsGenie for incident management"]
+        },
+        "CC7.4": {
+          "status": "NOT_SATISFIED",
+          "evidence": "No incident response infrastructure defined.",
+          "gaps": ["No documented incident response plan", "No automated containment procedures", "No forensic investigation capabilities"],
+          "recommendations": ["Document incident response procedures and runbooks", "Create Lambda-based automated containment actions", "Enable CloudTrail with S3 logging for forensic analysis"]
+        },
+        "CC7.5": {
+          "status": "PARTIALLY_SATISFIED",
+          "evidence": "RDS automated backups with 7-day retention. S3 versioning on backup bucket.",
+          "gaps": ["No documented recovery procedures", "No regular disaster recovery testing"],
+          "recommendations": ["Document and test RDS point-in-time recovery procedures", "Implement quarterly disaster recovery exercises"]
+        }
+      }
+    },
+    "CC8": {
+      "name": "Change Management",
+      "overall_status": "SATISFIED",
+      "score": 90,
+      "criteria": {
+        "CC8.1": {
+          "status": "SATISFIED",
+          "evidence": "All infrastructure defined as Terraform code (Infrastructure as Code). Changes require terraform plan/apply workflow. State file stored in S3 with DynamoDB locking. Full migration documented by Aegis pipeline with audit trail.",
+          "gaps": [],
+          "recommendations": ["Add Terraform Sentinel policies for policy-as-code enforcement"]
+        }
+      }
+    },
+    "A1": {
+      "name": "Availability",
+      "overall_status": "PARTIALLY_SATISFIED",
+      "score": 68,
+      "criteria": {
+        "A1.1": {
+          "status": "PARTIALLY_SATISFIED",
+          "evidence": "EKS auto-scaling configured (2-10 nodes). RDS Multi-AZ deployment enabled.",
+          "gaps": ["No EC2 Auto Scaling group for app/worker instances", "No defined capacity planning process"],
+          "recommendations": ["Migrate standalone EC2 instances to Auto Scaling groups", "Implement capacity planning with AWS Compute Optimizer"]
+        },
+        "A1.2": {
+          "status": "PARTIALLY_SATISFIED",
+          "evidence": "RDS Multi-AZ provides database failover. EKS distributes across availability zones.",
+          "gaps": ["No multi-region disaster recovery plan", "No Route53 health checks for failover"],
+          "recommendations": ["Design multi-region DR strategy with RTO/RPO targets", "Implement Route53 health checks and failover routing"]
+        },
+        "A1.3": {
+          "status": "NOT_SATISFIED",
+          "evidence": "RDS automated backups exist but no documented RPO/RTO objectives.",
+          "gaps": ["No defined Recovery Point Objective (RPO)", "No defined Recovery Time Objective (RTO)", "No backup verification testing"],
+          "recommendations": ["Define RPO ≤ 1 hour and RTO ≤ 4 hours for production workloads", "Implement automated backup restoration testing", "Create runbook for full environment recovery"]
+        }
+      }
+    }
+  },
+  "findings": [
+    {
+      "finding_id": "F-001",
+      "severity": "HIGH",
+      "category": "Access Control",
+      "title": "Missing MFA enforcement on privileged IAM roles",
+      "description": "No aws:MultiFactorAuthPresent condition on IAM roles with write permissions to production resources (RDS, S3, KMS). An attacker with stolen role credentials could modify or delete production data.",
+      "affected_resources": ["aws_iam_role.app_server", "aws_iam_role.eks_node", "aws_iam_role.lambda_exec"],
+      "recommendation": "Add Condition: {\"Bool\": {\"aws:MultiFactorAuthPresent\": \"true\"}} to all policies with write actions on production resources",
+      "remediation_effort": "LOW"
+    },
+    {
+      "finding_id": "F-002",
+      "severity": "HIGH",
+      "category": "Monitoring",
+      "title": "No CloudTrail audit logging configured",
+      "description": "AWS CloudTrail is not explicitly configured in the Terraform infrastructure. Without CloudTrail, API calls to AWS services are not logged, preventing security investigations and compliance auditing.",
+      "affected_resources": ["All AWS resources"],
+      "recommendation": "Enable CloudTrail in all regions with multi-region trail, S3 log delivery, and CloudWatch Logs integration",
+      "remediation_effort": "LOW"
+    },
+    {
+      "finding_id": "F-003",
+      "severity": "HIGH",
+      "category": "Availability",
+      "title": "No defined RPO/RTO for disaster recovery",
+      "description": "While RDS automated backups are enabled, there are no formally defined Recovery Point Objective or Recovery Time Objective targets. Recovery procedures have not been tested.",
+      "affected_resources": ["aws_db_instance.postgres", "aws_eks_cluster.main"],
+      "recommendation": "Define RPO ≤ 1 hour and RTO ≤ 4 hours. Implement and test quarterly DR exercises.",
+      "remediation_effort": "MEDIUM"
+    },
+    {
+      "finding_id": "F-004",
+      "severity": "MEDIUM",
+      "category": "Network Security",
+      "title": "Web security group allows unrestricted inbound HTTP/HTTPS",
+      "description": "Security group aws_security_group.web allows inbound traffic from 0.0.0.0/0 on ports 80 and 443. This was migrated from the GCP firewall rule and should be fronted by a WAF.",
+      "affected_resources": ["aws_security_group.web"],
+      "recommendation": "Deploy AWS WAF with rate limiting and common exploit protection. Consider using CloudFront for DDoS mitigation.",
+      "remediation_effort": "MEDIUM"
+    },
+    {
+      "finding_id": "F-005",
+      "severity": "MEDIUM",
+      "category": "Encryption",
+      "title": "ElastiCache Redis in-transit encryption not enabled",
+      "description": "Redis cache cluster does not have transit_encryption_enabled set to true. Data transmitted between application and cache is unencrypted.",
+      "affected_resources": ["aws_elasticache_cluster.redis"],
+      "recommendation": "Enable transit_encryption_enabled and at_rest_encryption_enabled on the ElastiCache cluster",
+      "remediation_effort": "LOW"
+    },
+    {
+      "finding_id": "F-006",
+      "severity": "MEDIUM",
+      "category": "Monitoring",
+      "title": "No VPC Flow Logs configured",
+      "description": "VPC Flow Logs are not enabled, preventing network traffic analysis and anomaly detection.",
+      "affected_resources": ["aws_vpc.main"],
+      "recommendation": "Enable VPC Flow Logs with delivery to CloudWatch Logs or S3 for retention and analysis",
+      "remediation_effort": "LOW"
+    },
+    {
+      "finding_id": "F-007",
+      "severity": "LOW",
+      "category": "Operations",
+      "title": "No automated patching for EC2 instances",
+      "description": "Standalone EC2 instances (app_server, worker) do not have AWS Systems Manager Patch Manager configured for automated security patching.",
+      "affected_resources": ["aws_instance.app_server", "aws_instance.worker"],
+      "recommendation": "Install SSM Agent and configure Patch Manager with maintenance windows for automated patching",
+      "remediation_effort": "MEDIUM"
+    },
+    {
+      "finding_id": "F-008",
+      "severity": "INFORMATIONAL",
+      "category": "Best Practice",
+      "title": "Consider migrating standalone EC2 to Auto Scaling Groups",
+      "description": "App server and worker are single EC2 instances without auto-scaling or self-healing capabilities. For production workloads, Auto Scaling Groups provide better availability.",
+      "affected_resources": ["aws_instance.app_server", "aws_instance.worker"],
+      "recommendation": "Migrate to Launch Templates with Auto Scaling Groups for improved resilience",
+      "remediation_effort": "HIGH"
+    }
+  ],
+  "risk_matrix": [
+    {
+      "risk_id": "R-001",
+      "description": "Unauthorized access to production database via compromised IAM credentials",
+      "likelihood": 2,
+      "impact": 5,
+      "risk_score": 10,
+      "mitigation": "RDS in private subnet with security group restrictions. IAM role has only rds-db:connect permission.",
+      "residual_risk": 4
+    },
+    {
+      "risk_id": "R-002",
+      "description": "Data exfiltration from S3 media bucket",
+      "likelihood": 2,
+      "impact": 4,
+      "risk_score": 8,
+      "mitigation": "KMS encryption, bucket policy denying HTTP access, IAM roles with specific bucket ARN restrictions",
+      "residual_risk": 3
+    },
+    {
+      "risk_id": "R-003",
+      "description": "DDoS attack on public-facing web security group",
+      "likelihood": 3,
+      "impact": 3,
+      "risk_score": 9,
+      "mitigation": "Security group limits to ports 80/443 only. No WAF or DDoS protection currently configured.",
+      "residual_risk": 6
+    },
+    {
+      "risk_id": "R-004",
+      "description": "Extended downtime due to EKS cluster failure without documented recovery",
+      "likelihood": 2,
+      "impact": 4,
+      "risk_score": 8,
+      "mitigation": "EKS multi-AZ node distribution. No documented recovery procedures.",
+      "residual_risk": 5
+    },
+    {
+      "risk_id": "R-005",
+      "description": "Compliance gap from missing audit trail (no CloudTrail)",
+      "likelihood": 4,
+      "impact": 3,
+      "risk_score": 12,
+      "mitigation": "No current mitigation. CloudTrail must be enabled.",
+      "residual_risk": 8
+    },
+    {
+      "risk_id": "R-006",
+      "description": "Data loss from database corruption or accidental deletion",
+      "likelihood": 1,
+      "impact": 5,
+      "risk_score": 5,
+      "mitigation": "RDS automated backups (7-day retention), deletion_protection enabled, Multi-AZ deployment",
+      "residual_risk": 2
+    }
+  ],
+  "controls_satisfied": ["CC6.1", "CC6.2", "CC6.3", "CC6.8", "CC8.1"],
+  "controls_partial": ["CC6.6", "CC6.7", "CC7.1", "CC7.2", "CC7.5", "A1.1", "A1.2"],
+  "controls_failed": ["CC7.3", "CC7.4", "A1.3"],
+  "recommendations": [
+    "CRITICAL: Enable AWS CloudTrail in all regions with S3 log delivery and CloudWatch integration",
+    "HIGH: Add MFA condition to all IAM policies with write permissions on production resources",
+    "HIGH: Define RPO ≤ 1 hour, RTO ≤ 4 hours, and implement quarterly DR testing",
+    "MEDIUM: Deploy AWS WAF on the application endpoint with OWASP Top 10 rule set",
+    "MEDIUM: Enable VPC Flow Logs for network traffic analysis and anomaly detection",
+    "MEDIUM: Enable in-transit encryption on ElastiCache Redis cluster",
+    "MEDIUM: Enable AWS SecurityHub for unified security posture management",
+    "MEDIUM: Configure AWS GuardDuty for intelligent threat detection",
+    "LOW: Implement AWS Systems Manager Patch Manager for automated OS patching",
+    "LOW: Set up AWS Config rules for continuous compliance monitoring",
+    "INFO: Consider migrating standalone EC2 instances to Auto Scaling Groups for improved availability"
+  ]
+}

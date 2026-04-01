@@ -6,7 +6,7 @@ import { Hero } from "@/components/hero";
 import { Problem } from "@/components/problem";
 import { Pipeline } from "@/components/pipeline";
 import { DemoTabs } from "@/components/demo-tabs";
-
+import { MigrationDashboard } from "@/components/migration-dashboard";
 import { Tracks } from "@/components/tracks";
 import { Footer } from "@/components/footer";
 
@@ -60,6 +60,9 @@ export default function Home() {
           <DemoTabs />
         </AnimatedSection>
 
+        <AnimatedSection delay={0.2}>
+          <MigrationDashboard />
+        </AnimatedSection>
 
         <AnimatedSection>
           <Tracks />

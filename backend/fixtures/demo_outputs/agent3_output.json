@@ -1,0 +1,82 @@
+{
+  "architecture_graph": {
+    "nodes": [
+      {"id": "aws_vpc_main", "label": "Production VPC", "type": "VPC", "service": "aws_vpc", "group": "Networking", "x": 400, "y": 50},
+      {"id": "aws_subnet_public", "label": "Public Subnet", "type": "Subnet", "service": "aws_subnet", "group": "Networking", "x": 250, "y": 150},
+      {"id": "aws_subnet_private", "label": "Private Subnet", "type": "Subnet", "service": "aws_subnet", "group": "Networking", "x": 550, "y": 150},
+      {"id": "aws_sg_web", "label": "Web Security Group", "type": "SecurityGroup", "service": "aws_security_group", "group": "Networking", "x": 100, "y": 250},
+      {"id": "aws_sg_internal", "label": "Internal Security Group", "type": "SecurityGroup", "service": "aws_security_group", "group": "Networking", "x": 700, "y": 250},
+      {"id": "aws_eip_app", "label": "Elastic IP", "type": "ElasticIP", "service": "aws_eip", "group": "Networking", "x": 100, "y": 350},
+      {"id": "aws_instance_app", "label": "App Server (m5.xlarge)", "type": "EC2", "service": "aws_instance", "group": "Compute", "x": 200, "y": 350},
+      {"id": "aws_instance_worker", "label": "Worker (t3.large)", "type": "EC2", "service": "aws_instance", "group": "Compute", "x": 400, "y": 350},
+      {"id": "aws_eks_main", "label": "EKS Cluster", "type": "EKS", "service": "aws_eks_cluster", "group": "Containers", "x": 600, "y": 350},
+      {"id": "aws_eks_nodes", "label": "Node Group (3x m5.xl)", "type": "EKS", "service": "aws_eks_node_group", "group": "Containers", "x": 600, "y": 450},
+      {"id": "aws_rds_postgres", "label": "RDS PostgreSQL 14", "type": "RDS", "service": "aws_db_instance", "group": "Database", "x": 300, "y": 500},
+      {"id": "aws_elasticache_redis", "label": "ElastiCache Redis", "type": "ElastiCache", "service": "aws_elasticache_cluster", "group": "Database", "x": 500, "y": 500},
+      {"id": "aws_s3_media", "label": "Media Assets Bucket", "type": "S3", "service": "aws_s3_bucket", "group": "Storage", "x": 100, "y": 550},
+      {"id": "aws_s3_backups", "label": "Backups Bucket", "type": "S3", "service": "aws_s3_bucket", "group": "Storage", "x": 200, "y": 650},
+      {"id": "aws_s3_logs", "label": "Logs Bucket", "type": "S3", "service": "aws_s3_bucket", "group": "Storage", "x": 400, "y": 650},
+      {"id": "aws_sns_images", "label": "Image Uploads Topic", "type": "SNS", "service": "aws_sns_topic", "group": "Messaging", "x": 600, "y": 600},
+      {"id": "aws_sqs_images", "label": "Image Queue", "type": "SQS", "service": "aws_sqs_queue", "group": "Messaging", "x": 700, "y": 700},
+      {"id": "aws_lambda_image", "label": "Image Processor", "type": "Lambda", "service": "aws_lambda_function", "group": "Serverless", "x": 500, "y": 700},
+      {"id": "aws_kms_main", "label": "KMS Encryption Key", "type": "KMS", "service": "aws_kms_key", "group": "Security", "x": 700, "y": 500},
+      {"id": "aws_iam_app", "label": "App Server Role", "type": "IAM", "service": "aws_iam_role", "group": "Security", "x": 100, "y": 450}
+    ],
+    "edges": [
+      {"id": "e1", "source": "aws_vpc_main", "target": "aws_subnet_public", "label": "contains", "type": "CONTAINS"},
+      {"id": "e2", "source": "aws_vpc_main", "target": "aws_subnet_private", "label": "contains", "type": "CONTAINS"},
+      {"id": "e3", "source": "aws_subnet_public", "target": "aws_instance_app", "label": "hosts", "type": "CONTAINS"},
+      {"id": "e4", "source": "aws_subnet_private", "target": "aws_instance_worker", "label": "hosts", "type": "CONTAINS"},
+      {"id": "e5", "source": "aws_subnet_private", "target": "aws_eks_main", "label": "hosts", "type": "CONTAINS"},
+      {"id": "e6", "source": "aws_eip_app", "target": "aws_instance_app", "label": "attached to", "type": "DEPENDS_ON"},
+      {"id": "e7", "source": "aws_instance_app", "target": "aws_rds_postgres", "label": "connects to", "type": "ACCESSES"},
+      {"id": "e8", "source": "aws_instance_app", "target": "aws_elasticache_redis", "label": "caches via", "type": "ACCESSES"},
+      {"id": "e9", "source": "aws_instance_app", "target": "aws_s3_media", "label": "reads from", "type": "ACCESSES"},
+      {"id": "e10", "source": "aws_eks_main", "target": "aws_eks_nodes", "label": "manages", "type": "CONTAINS"},
+      {"id": "e11", "source": "aws_eks_nodes", "target": "aws_rds_postgres", "label": "queries", "type": "ACCESSES"},
+      {"id": "e12", "source": "aws_sns_images", "target": "aws_sqs_images", "label": "delivers to", "type": "TRIGGERS"},
+      {"id": "e13", "source": "aws_sqs_images", "target": "aws_lambda_image", "label": "triggers", "type": "TRIGGERS"},
+      {"id": "e14", "source": "aws_lambda_image", "target": "aws_s3_media", "label": "writes to", "type": "ACCESSES"},
+      {"id": "e15", "source": "aws_lambda_image", "target": "aws_rds_postgres", "label": "updates", "type": "ACCESSES"},
+      {"id": "e16", "source": "aws_kms_main", "target": "aws_s3_media", "label": "encrypts", "type": "DEPENDS_ON"},
+      {"id": "e17", "source": "aws_kms_main", "target": "aws_rds_postgres", "label": "encrypts", "type": "DEPENDS_ON"},
+      {"id": "e18", "source": "aws_iam_app", "target": "aws_instance_app", "label": "assumed by", "type": "DEPENDS_ON"},
+      {"id": "e19", "source": "aws_sg_web", "target": "aws_instance_app", "label": "protects", "type": "DEPENDS_ON"},
+      {"id": "e20", "source": "aws_sg_internal", "target": "aws_rds_postgres", "label": "protects", "type": "DEPENDS_ON"}
+    ]
+  },
+  "cost_estimate": {
+    "total_monthly_usd": 1087.40,
+    "gcp_equivalent_usd": 1354.00,
+    "monthly_savings_usd": 266.60,
+    "annual_savings_usd": 3199.20,
+    "breakdown": [
+      {"resource": "aws_instance.app_server", "type": "m5.xlarge", "monthly_usd": 140.00, "category": "Compute"},
+      {"resource": "aws_instance.worker", "type": "t3.large", "monthly_usd": 60.00, "category": "Compute"},
+      {"resource": "aws_eks_cluster.main", "type": "EKS Control Plane", "monthly_usd": 73.00, "category": "Containers"},
+      {"resource": "aws_eks_node_group.primary (3 nodes)", "type": "m5.xlarge x3", "monthly_usd": 420.00, "category": "Containers"},
+      {"resource": "aws_db_instance.postgres", "type": "db.m5.large", "monthly_usd": 140.00, "category": "Database"},
+      {"resource": "aws_elasticache_cluster.redis", "type": "cache.t3.medium", "monthly_usd": 50.00, "category": "Database"},
+      {"resource": "aws_s3_bucket.media_assets", "type": "S3 Standard", "monthly_usd": 23.00, "category": "Storage"},
+      {"resource": "aws_s3_bucket.backups", "type": "S3 Standard-IA", "monthly_usd": 12.00, "category": "Storage"},
+      {"resource": "aws_s3_bucket.logs", "type": "S3 Standard", "monthly_usd": 23.00, "category": "Storage"},
+      {"resource": "aws_lambda_function.image_processor", "type": "Lambda", "monthly_usd": 5.00, "category": "Serverless"},
+      {"resource": "aws_sns_topic.image_uploads", "type": "SNS", "monthly_usd": 0.50, "category": "Messaging"},
+      {"resource": "aws_sqs_queue.image_sub", "type": "SQS", "monthly_usd": 0.40, "category": "Messaging"},
+      {"resource": "aws_kms_key.main", "type": "KMS", "monthly_usd": 1.00, "category": "Security"},
+      {"resource": "aws_eip.app", "type": "Elastic IP", "monthly_usd": 3.50, "category": "Networking"},
+      {"resource": "Security Groups", "type": "No charge", "monthly_usd": 0.00, "category": "Networking"}
+    ],
+    "by_category": {
+      "Compute": 200.00,
+      "Containers": 493.00,
+      "Database": 190.00,
+      "Storage": 58.00,
+      "Serverless": 5.00,
+      "Messaging": 0.90,
+      "Security": 1.00,
+      "Networking": 3.50
+    }
+  },
+  "executive_summary": "The migrated infrastructure consists of 20 AWS resources across 7 service categories. The architecture follows a standard multi-tier pattern with VPC isolation (public/private subnets), an EKS cluster for containerized workloads, RDS for relational persistence, ElastiCache for caching, and Lambda for serverless image processing. The estimated monthly AWS cost of $1,087.40 represents a 19.7% savings ($266.60/month) compared to the GCP equivalent at $1,354.00. Key improvements include KMS encryption on all storage, deletion protection on RDS, and upgraded instance types from deprecated N1 to M5/T3 families. The EKS cluster with 3 m5.xlarge nodes accounts for the largest cost component at $493/month (45% of total). Annual projected savings: $3,199.20."
+}

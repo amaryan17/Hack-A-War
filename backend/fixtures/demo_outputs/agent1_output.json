@@ -1,0 +1,190 @@
+{
+  "overall_health_score": 42,
+  "files": {
+    "main.tf": {
+      "health_score": 38,
+      "issues": [
+        {
+          "severity": "HIGH",
+          "type": "DEPRECATED_API",
+          "resource": "google_compute_instance.app_server",
+          "description": "Using deprecated n1-standard-4 machine type. The N1 series is legacy and offers lower performance-per-dollar compared to N2/E2 series.",
+          "suggestion": "Migrate to n2-standard-4 for 20% better performance at similar cost"
+        },
+        {
+          "severity": "HIGH",
+          "type": "DEPRECATED_API",
+          "resource": "google_compute_instance.worker",
+          "description": "Using deprecated n1-standard-2 machine type",
+          "suggestion": "Migrate to e2-standard-2 or n2-standard-2"
+        },
+        {
+          "severity": "HIGH",
+          "type": "SECURITY",
+          "resource": "google_sql_database_instance.postgres",
+          "description": "No deletion_protection enabled on production database. Accidental terraform destroy could delete the database.",
+          "suggestion": "Add deletion_protection = true to prevent accidental deletion"
+        },
+        {
+          "severity": "MEDIUM",
+          "type": "MISSING_BEST_PRACTICE",
+          "resource": "google_compute_instance.app_server",
+          "description": "No labels/tags defined for resource organization and cost tracking",
+          "suggestion": "Add labels for environment, team, cost-center"
+        },
+        {
+          "severity": "MEDIUM",
+          "type": "DEPRECATED_API",
+          "resource": "google_sql_database_instance.postgres",
+          "description": "Using db-n1-standard-2 tier which is legacy",
+          "suggestion": "Consider db-custom or newer tier options"
+        }
+      ]
+    },
+    "network.tf": {
+      "health_score": 45,
+      "issues": [
+        {
+          "severity": "HIGH",
+          "type": "SECURITY",
+          "resource": "google_compute_firewall.allow_http",
+          "description": "Firewall rule allows inbound traffic from 0.0.0.0/0 on ports 80 and 443. This exposes services to the entire internet without IP filtering.",
+          "suggestion": "Restrict source_ranges to known IP ranges or use Cloud Armor for web application firewall"
+        },
+        {
+          "severity": "MEDIUM",
+          "type": "SECURITY",
+          "resource": "google_compute_firewall.allow_internal",
+          "description": "Internal firewall allows all ports (0-65535) on TCP and UDP within 10.0.0.0/8",
+          "suggestion": "Restrict to only required ports for inter-service communication"
+        },
+        {
+          "severity": "LOW",
+          "type": "MISSING_BEST_PRACTICE",
+          "resource": "google_compute_firewall.allow_http",
+          "description": "No logging enabled on firewall rules",
+          "suggestion": "Enable firewall logging for security monitoring"
+        }
+      ]
+    },
+    "storage.tf": {
+      "health_score": 35,
+      "issues": [
+        {
+          "severity": "HIGH",
+          "type": "SECURITY",
+          "resource": "google_storage_bucket.media_assets",
+          "description": "Bucket has uniform_bucket_level_access disabled and CORS allows all origins. This creates a public bucket accessible from anywhere.",
+          "suggestion": "Enable uniform_bucket_level_access and restrict CORS origins"
+        },
+        {
+          "severity": "HIGH",
+          "type": "SECURITY",
+          "resource": "google_storage_bucket.media_assets",
+          "description": "No CMEK encryption configured. Data is encrypted with Google-managed keys only.",
+          "suggestion": "Configure Customer-Managed Encryption Keys (CMEK) using Cloud KMS"
+        },
+        {
+          "severity": "MEDIUM",
+          "type": "MISSING_BEST_PRACTICE",
+          "resource": "google_storage_bucket.logs",
+          "description": "No lifecycle rules configured. Logs will accumulate indefinitely, increasing storage costs.",
+          "suggestion": "Add lifecycle rule to transition to Nearline after 30 days and delete after 365 days"
+        },
+        {
+          "severity": "MEDIUM",
+          "type": "SECURITY",
+          "resource": "google_storage_bucket.logs",
+          "description": "No CMEK encryption on logs bucket containing potentially sensitive application data",
+          "suggestion": "Apply CMEK encryption using the existing db_key or a dedicated logs encryption key"
+        }
+      ]
+    },
+    "iam.tf": {
+      "health_score": 25,
+      "issues": [
+        {
+          "severity": "HIGH",
+          "type": "SECURITY",
+          "resource": "google_project_iam_binding.app_editor",
+          "description": "Service account bound to roles/editor — this grants broad read/write access to almost all GCP resources. Violates principle of least privilege.",
+          "suggestion": "Replace with specific roles: roles/compute.instanceAdmin, roles/cloudsql.client, roles/storage.objectViewer"
+        },
+        {
+          "severity": "MEDIUM",
+          "type": "SECURITY",
+          "resource": "google_project_iam_binding.storage_admin",
+          "description": "roles/storage.admin grants full control over ALL storage buckets in the project",
+          "suggestion": "Use roles/storage.objectAdmin on specific buckets instead of project-level binding"
+        },
+        {
+          "severity": "LOW",
+          "type": "MISSING_BEST_PRACTICE",
+          "resource": "google_service_account.app_sa",
+          "description": "Service account description is generic",
+          "suggestion": "Add detailed description of the service account's purpose and permissions scope"
+        }
+      ]
+    },
+    "serverless.tf": {
+      "health_score": 62,
+      "issues": [
+        {
+          "severity": "MEDIUM",
+          "type": "DEPRECATED_API",
+          "resource": "google_cloudfunctions_function.image_processor",
+          "description": "Using Cloud Functions Gen1 (google_cloudfunctions_function). Gen2 offers better performance, longer timeouts, and event-driven triggers.",
+          "suggestion": "Migrate to google_cloudfunctions2_function for Gen2 features"
+        },
+        {
+          "severity": "LOW",
+          "type": "MISSING_BEST_PRACTICE",
+          "resource": "google_cloudfunctions_function.image_processor",
+          "description": "Using Python 3.9 runtime which is approaching end of support",
+          "suggestion": "Upgrade to python311 or python312 runtime"
+        }
+      ]
+    },
+    "variables.tf": {
+      "health_score": 72,
+      "issues": [
+        {
+          "severity": "MEDIUM",
+          "type": "SECURITY",
+          "resource": "variable.ssh_public_key",
+          "description": "SSH key has a default value hardcoded in the variable definition",
+          "suggestion": "Remove default value and require it to be provided at apply time"
+        }
+      ]
+    }
+  },
+  "summary": {
+    "total_issues": 18,
+    "critical": 0,
+    "high": 7,
+    "medium": 8,
+    "low": 3,
+    "deprecated_resources": ["n1-standard-4", "n1-standard-2", "db-n1-standard-2", "google_cloudfunctions_function"],
+    "security_violations": ["public_bucket:media-assets", "open_firewall:allow-http", "overpermissioned:roles/editor", "no_cmek:media-assets", "no_cmek:logs", "no_deletion_protection:postgres"],
+    "resource_inventory": {
+      "compute": 3,
+      "storage": 3,
+      "networking": 5,
+      "database": 2,
+      "iam": 6,
+      "serverless": 3
+    }
+  },
+  "recommendations": [
+    "CRITICAL: Replace roles/editor with task-specific IAM roles immediately",
+    "Upgrade all n1 machine types to n2 or e2 equivalents for better performance",
+    "Enable CMEK encryption on all Cloud Storage buckets using existing KMS key ring",
+    "Add deletion_protection = true to the PostgreSQL instance",
+    "Restrict media_assets bucket: enable uniform_bucket_level_access and limit CORS",
+    "Add lifecycle rules to the logs bucket (30-day transition, 365-day deletion)",
+    "Migrate Cloud Functions from Gen1 to Gen2 for improved performance",
+    "Restrict firewall rules: use Cloud Armor WAF instead of open 0.0.0.0/0 rules",
+    "Enable firewall logging on all rules for security monitoring",
+    "Upgrade Python runtime from 3.9 to 3.11+"
+  ]
+}

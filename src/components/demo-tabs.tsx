@@ -6,7 +6,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { BackgroundPaths } from "./ui/background-paths";
 import { GlowCard } from "./ui/spotlight-card";
-
+import { useRouter } from "next/navigation";
+import { aegisAPI } from "@/lib/api";
+import { Loader2 } from "lucide-react";
 const tabs = [
   { id: 1, title: "Step 1: Upload" },
   { id: 2, title: "Step 2: Scan" },
@@ -106,9 +108,24 @@ function CodeBox({ title, titleColor, children, borderColor = "border-white/10" 
   );
 }
 
-// ── STEP CONTENTS ──
+// ─── STEP CONTENTS ───
 
 function Step1() {
+  const router = useRouter();
+  const [isStarting, setIsStarting] = useState(false);
+
+  const handleStartDemo = async () => {
+    try {
+      setIsStarting(true);
+      const res = await aegisAPI.startDemo();
+      router.push(`/pipeline/${res.job_id}`);
+    } catch (err) {
+      console.error("Failed to start:", err);
+      setIsStarting(false);
+      alert("Failed to connect to backend API.");
+    }
+  };
+
   return (
     <>
       <div className="flex flex-col justify-center">
@@ -118,11 +135,16 @@ function Step1() {
         </p>
       </div>
       <div className="flex flex-col space-y-4">
-        <div className="w-full border-2 border-dashed border-white/10 rounded-xl bg-black/30 p-10 flex flex-col items-center justify-center cursor-pointer hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/5 transition-all duration-300">
+        <div 
+          onClick={handleStartDemo}
+          className="w-full border-2 border-dashed border-white/10 rounded-xl bg-black/30 p-10 flex flex-col items-center justify-center cursor-pointer hover:border-[#00E5FF]/40 hover:bg-[#00E5FF]/5 transition-all duration-300"
+        >
           <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-4">
-            <span className="text-xl">📁</span>
+            {isStarting ? <Loader2 className="animate-spin text-[#00E5FF]" /> : <span className="text-xl">📁</span>}
           </div>
-          <span className="font-mono text-sm text-white/70">Drag & drop gcp-portfolio.zip</span>
+          <span className="font-mono text-sm text-white/70">
+            {isStarting ? "Processing..." : "Drag & drop gcp-portfolio.zip or Click to Test"}
+          </span>
         </div>
         <CodeBox title="gcp/main.tf" titleColor="text-white/50" borderColor="border-white/10">
           <span className="text-purple-400">resource</span> <span className="text-[#00E5FF]">&quot;google_compute_instance&quot; &quot;app_server&quot;</span> {"{\n"}
